@@ -23,9 +23,27 @@ struct SampleData {
         CoffeeShop(
             name: "Velvet Bean",
             neighborhood: "North Park",
-            distance: "0.7 mi",
+            distance: "0.8 mi",
             rating: 4.7,
             reviewCount: 210,
+            imageName: "coffeeShop3",
+            stampAvailable: true
+        ),
+        CoffeeShop(
+            name: "RedRock Bean",
+            neighborhood: "South Park",
+            distance: "0.2 mi",
+            rating: 4.4,
+            reviewCount: 315,
+            imageName: "coffeeShop3",
+            stampAvailable: false
+        ),
+        CoffeeShop(
+            name: "Solo Bean",
+            neighborhood: "La Jolla",
+            distance: "0.4 mi",
+            rating: 4.3,
+            reviewCount: 175,
             imageName: "coffeeShop3",
             stampAvailable: true
         )
