@@ -2,26 +2,22 @@ import SwiftUI
 import MapKit
 
 struct MapView: View {
+    @EnvironmentObject var locationManager: LocationManager
+    @EnvironmentObject var service: CoffeeShopService
+
     @State private var selectedMode = MapDisplayMode.list
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 32.7157, longitude: -117.1611),
-            span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     )
-
-    private let shopLocations = [
-        CoffeeShopLocation(shop: SampleData.shops[0], coordinate: CLLocationCoordinate2D(latitude: 32.7242, longitude: -117.1688)),
-        CoffeeShopLocation(shop: SampleData.shops[1], coordinate: CLLocationCoordinate2D(latitude: 32.7110, longitude: -117.1537)),
-        CoffeeShopLocation(shop: SampleData.shops[2], coordinate: CLLocationCoordinate2D(latitude: 32.7488, longitude: -117.1293))
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Coffee Map")
                 .font(.largeTitle.bold())
                 .foregroundStyle(Theme.espresso)
-                
 
             Picker("View", selection: $selectedMode) {
                 ForEach(MapDisplayMode.allCases) { mode in
@@ -40,13 +36,28 @@ struct MapView: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .padding()
         .background(Theme.cream.ignoresSafeArea())
+        .onChange(of: locationManager.location) { _, location in
+            guard let loc = location else { return }
+            cameraPosition = .region(MKCoordinateRegion(
+                center: loc.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+            ))
+        }
     }
 
     private var coffeeMap: some View {
         Map(position: $cameraPosition) {
-            ForEach(shopLocations) { location in
-                Marker(location.shop.name, systemImage: "cup.and.saucer.fill", coordinate: location.coordinate)
-                    .tint(Theme.coffee)
+            UserAnnotation()
+            ForEach(service.places) { place in
+                Marker(
+                    place.name,
+                    systemImage: "cup.and.saucer.fill",
+                    coordinate: CLLocationCoordinate2D(
+                        latitude: place.geocodes.main.latitude,
+                        longitude: place.geocodes.main.longitude
+                    )
+                )
+                .tint(Theme.coffee)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -54,13 +65,72 @@ struct MapView: View {
     }
 
     private var shopList: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Nearby")
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader(title: "Nearby")
 
-            ForEach(SampleData.shops.prefix(5)) { shop in
-                CoffeeShopRow(shop: shop)
+                if service.places.isEmpty {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Finding coffee shops…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 40)
+                } else {
+                    ForEach(service.places) { place in
+                        FoursquarePlaceRow(place: place)
+                    }
+                }
             }
         }
+    }
+}
+
+struct FoursquarePlaceRow: View {
+    let place: FoursquarePlace
+
+    var body: some View {
+        HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(LinearGradient(
+                    colors: [Theme.coffee, Theme.caramel],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .frame(width: 56, height: 56)
+                .overlay {
+                    Image(systemName: "cup.and.saucer.fill")
+                        .font(.title3)
+                        .foregroundStyle(Theme.cream)
+                }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(place.name)
+                    .font(.headline)
+                    .foregroundStyle(Theme.espresso)
+
+                if let address = place.location.address {
+                    Text(address)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                if let city = place.location.city {
+                    Text(city)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(12)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
     }
 }
 
@@ -72,21 +142,14 @@ private enum MapDisplayMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .list:
-            "List"
-        case .map:
-            "Map"
+        case .list: "List"
+        case .map: "Map"
         }
     }
 }
 
-private struct CoffeeShopLocation: Identifiable {
-    let shop: CoffeeShop
-    let coordinate: CLLocationCoordinate2D
-
-    var id: CoffeeShop.ID { shop.id }
-}
-
 #Preview {
     MapView()
+        .environmentObject(LocationManager())
+        .environmentObject(CoffeeShopService())
 }
